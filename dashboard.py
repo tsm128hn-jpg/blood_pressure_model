@@ -1,6 +1,5 @@
 import streamlit as st
 import numpy as np
-import tensorflow as tf
 import time
 import pandas as pd
 import plotly.graph_objects as go
@@ -25,29 +24,20 @@ if 'history_time' not in st.session_state:
     st.session_state.history_time = []
 
 # ==========================================
-# 2. AI MODEL LOADER
+# 2. AI MODEL LOADER (Mock for Cloud Deployment)
 # ==========================================
 @st.cache_resource
 def load_ai_model():
-    """Loads the model once and keeps it in memory for fast predictions"""
-    try:
-        # Try loading with safe_mode for better compatibility
-        model = tf.keras.models.load_model("max30102_bp_model.keras", safe_mode=False)
-        return model
-    except Exception as e:
-        st.error(f"""
-        ❌ Failed to load model: {str(e)[:200]}...
-        
-        **Solution:** Your Keras version is incompatible with the saved model.
-        
-        Run this in terminal:
-        ```
-        pip install --upgrade tensorflow keras
-        ```
-        
-        Then refresh this page.
-        """)
-        return None
+    """Mock model for Streamlit Cloud - simulates AI predictions"""
+    class MockModel:
+        def predict(self, inputs, verbose=0):
+            # Simulate realistic BP readings (130/80 as base)
+            sys_base = 130 + np.random.normal(0, 5)
+            dia_base = 80 + np.random.normal(0, 3)
+            return np.array([[[sys_base, dia_base]]])
+    
+    return MockModel()
+
 
 model = load_ai_model()
 
@@ -80,21 +70,18 @@ true_sys = st.sidebar.number_input("True Systolic (mmHg)", min_value=60, max_val
 true_dia = st.sidebar.number_input("True Diastolic (mmHg)", min_value=40, max_value=130, value=80)
 
 if st.sidebar.button("Calibrate AI"):
-    if model is not None:
-        # 1. Get current baseline from the AI
-        seq, tab = get_sensor_data()
-        preds = model.predict({"input_sequence": seq, "input_tabular": tab}, verbose=0)
-        ai_base_sys = preds[0][0][0]
-        ai_base_dia = preds[0][0][1]
-        
-        # 2. Calculate the exact mathematical offset
-        st.session_state.sys_offset = true_sys - ai_base_sys
-        st.session_state.dia_offset = true_dia - ai_base_dia
-        st.session_state.is_calibrated = True
-        
-        st.sidebar.success(f"✅ Calibrated Successfully!\n\nSys Offset: {st.session_state.sys_offset:+.1f}\nDia Offset: {st.session_state.dia_offset:+.1f}")
-    else:
-        st.sidebar.error("Model not loaded!")
+    # 1. Get current baseline from the AI
+    seq, tab = get_sensor_data()
+    preds = model.predict({"input_sequence": seq, "input_tabular": tab}, verbose=0)
+    ai_base_sys = preds[0][0][0]
+    ai_base_dia = preds[0][0][1]
+    
+    # 2. Calculate the exact mathematical offset
+    st.session_state.sys_offset = true_sys - ai_base_sys
+    st.session_state.dia_offset = true_dia - ai_base_dia
+    st.session_state.is_calibrated = True
+    
+    st.sidebar.success(f"✅ Calibrated Successfully!\n\nSys Offset: {st.session_state.sys_offset:+.1f}\nDia Offset: {st.session_state.dia_offset:+.1f}")
 
 if not st.session_state.is_calibrated:
     st.sidebar.warning("⚠️ Device is currently uncalibrated. Readings may have high variance based on patient demographics.")
@@ -104,6 +91,7 @@ if not st.session_state.is_calibrated:
 # ==========================================
 st.title("🫀 Live Cuffless Blood Pressure Monitor")
 st.markdown("Powered by MAX30102 PPG & Deep Residual Networks")
+st.info("📱 **Demo Version**: Using simulated sensor data. For production use, connect a real MAX30102 sensor.")
 
 col1, col2, col3 = st.columns(3)
 sys_metric = col1.empty()
