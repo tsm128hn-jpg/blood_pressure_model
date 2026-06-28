@@ -102,11 +102,11 @@ if run_monitor != st.session_state.is_monitoring:
     st.session_state.is_monitoring = run_monitor
     
 if st.session_state.is_monitoring and model is not None:
-    st.info("📊 Live monitoring active. Readings update every 2 seconds...")
+    st.info("📊 Live monitoring active. Readings update every 30 seconds...")
     
     placeholder = st.empty()
     
-    for _ in range(5):
+    for reading_num in range(1, 11):  # Collect 10 readings
         seq, tab = get_sensor_data()
         
         preds = model.predict({"input_sequence": seq, "input_tabular": tab}, verbose=0)
@@ -129,21 +129,38 @@ if st.session_state.is_monitoring and model is not None:
         st.session_state.history_sys.append(final_sys)
         st.session_state.history_dia.append(final_dia)
         
+        # Keep only the last 50 readings
         if len(st.session_state.history_sys) > 50:
             st.session_state.history_time.pop(0)
             st.session_state.history_sys.pop(0)
             st.session_state.history_dia.pop(0)
             
+        # Create detailed chart with readings count
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=st.session_state.history_time, y=st.session_state.history_sys, 
-                                 mode='lines+markers', name='Systolic', line=dict(color='red', width=3)))
+                                 mode='lines+markers', name='Systolic', line=dict(color='red', width=3),
+                                 marker=dict(size=8)))
         fig.add_trace(go.Scatter(x=st.session_state.history_time, y=st.session_state.history_dia, 
-                                 mode='lines+markers', name='Diastolic', line=dict(color='blue', width=3)))
-        fig.update_layout(yaxis=dict(range=[40, 180]), margin=dict(l=0, r=0, t=30, b=0), height=400)
+                                 mode='lines+markers', name='Diastolic', line=dict(color='blue', width=3),
+                                 marker=dict(size=8)))
+        fig.update_layout(
+            yaxis=dict(range=[40, 180]), 
+            margin=dict(l=0, r=0, t=30, b=0), 
+            height=400,
+            title=f"Blood Pressure Readings - Reading #{reading_num} (Updated every 30 sec)"
+        )
         
         chart_placeholder.plotly_chart(fig, use_container_width=True)
         
-        time.sleep(2)
+        # Show progress
+        st.write(f"✅ Reading #{reading_num} recorded at {current_time.strftime('%H:%M:%S')}")
+        st.write(f"📈 Current: SYS {final_sys:.1f} | DIA {final_dia:.1f} | HR {current_hr:.1f}")
+        
+        # Wait 30 seconds before next reading
+        if reading_num < 10:
+            st.write(f"⏱️ Next reading in 30 seconds...")
+            time.sleep(30)
+
 else:
     if len(st.session_state.history_sys) > 0:
         fig = go.Figure()
